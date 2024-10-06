@@ -6,7 +6,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as SplashScreen from 'expo-splash-screen';
 import { Image, ImageBackground } from "expo-image";
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { NGROK_URL } from "./Constants";
 import { Reload } from "../components/reload";
 
 const backgroundPath = require('../assets/images/background.png');
@@ -15,6 +14,8 @@ const profileDefault = require('../assets/images/profile-default.png');
 export default function SelectProfile() {
     const [getImage, setImage] = useState(profileDefault);
     const [getReloadState, setReloadState] = useState(false);
+    const NGROK_URL = process.env.EXPO_PUBLIC_URL;
+
 
 
     const user_mobile = useLocalSearchParams().mobile;

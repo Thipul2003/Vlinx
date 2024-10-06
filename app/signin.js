@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { router } from 'expo-router';
-import { NGROK_URL } from './Constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Reload } from '../components/reload';
 
@@ -21,6 +20,7 @@ export default function SignIn() {
     const [mobileMsg, setMobileMsg] = useState("");
     const [passwordMsg, setPasswordMsg] = useState("");
     const [getReloadState, setReloadState] = useState(false);
+    const NGROK_URL = process.env.EXPO_PUBLIC_URL;
 
 
 

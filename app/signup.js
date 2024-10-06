@@ -5,7 +5,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
-import { NGROK_URL } from './Constants';
 import { Link, router } from 'expo-router';
 import { Reload } from '../components/reload';
 
@@ -22,6 +21,8 @@ export default function SignUp() {
     const [passwordMsg, setPasswordMsg] = useState("");
     const [confirmPasswordMsg, setConfirmPasswordMsg] = useState("");
     const [getReloadState, setReloadState] = useState(false);
+    const NGROK_URL = process.env.EXPO_PUBLIC_URL;
+
 
 
 

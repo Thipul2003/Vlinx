@@ -4,19 +4,21 @@ import { Alert, Button, Pressable, RefreshControl, StyleSheet, Text, View } from
 import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { Image } from "expo-image";
-import { Link, router, useFocusEffect } from 'expo-router';
+import { Link, Navigator, router, useFocusEffect } from 'expo-router';
 import { CustomChat } from "../components/CustomChat";
 import { CustomSelector } from "../components/CustomSelector";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NGROK_URL } from './Constants';
 import { FlashList } from "@shopify/flash-list";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, } from 'react-native-reanimated';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Reload } from "../components/reload";
+// import Profile from "./profile";
 
 const backgroundPath = require('../assets/images/background2.png');
+const NGROK_URL = process.env.EXPO_PUBLIC_URL;
+
 
 function Chats({ navigation }) {
 
@@ -26,8 +28,6 @@ function Chats({ navigation }) {
     const [user, setUser] = useState("");
     const [getReloadState, setReloadState] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-
-
 
 
     const intervalRef = useRef(null);  // Ref to store the interval
@@ -45,11 +45,11 @@ function Chats({ navigation }) {
         const userJson = await AsyncStorage.getItem("user");
         let user = JSON.parse(userJson);
         setUser(user);
+        setReloadState(true);
 
         if (user == null) {
             router.replace("/signin");
         } else {
-            setReloadState(true);
             setUser(user);
             const response = await fetch(NGROK_URL + "/Vlinx/LoadHomeData?id=" + user.id);
 
@@ -78,7 +78,7 @@ function Chats({ navigation }) {
     useEffect(() => {
         // intervalRef.current = setInterval(() => {
         //     fetchChatData();
-        // }, 5000);
+        // }, 1000);
 
         return () => {
             clearInterval(intervalRef.current);
@@ -88,6 +88,7 @@ function Chats({ navigation }) {
 
     const onRefresh = async () => {
         setRefreshing(true);
+        setReloadState(true);
         await fetchChatData();
         setRefreshing(false);
     };
@@ -161,28 +162,34 @@ function Chats({ navigation }) {
 
             {/* hEADER */}
             <View style={styles.view2}>
-                <View style={styles.view3}>
-                    <FontAwesome6 name="magnifying-glass" size={20} color={"white"} />
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', }}>
+                    <View style={styles.view3}>
+                        <FontAwesome6 name="magnifying-glass" size={20} color={"white"} />
+                    </View>
                 </View>
                 <View style={styles.view4}>
                     <Text style={styles.text1}>Welcome, </Text>
                     <Text style={styles.text2}>{name}</Text>
                     <Image source={require('../assets/icons/peace.svg')} style={styles.image3}></Image>
                 </View>
-                <View style={styles.view15}>
-                    {
-                        profile == null ?
-                            <Image source={require('../assets/images/profile-default.png')} style={styles.image4}></Image>
-                            :
-                            <Image source={profile} style={styles.image4}></Image>
-                    }
+                <View style={{ flex: 1, }}>
+                    <Pressable style={styles.view15} onPress={() => {
+                        router.push('/profile');
+                    }}>
+                        {
+                            profile == null ?
+                                <Image source={require('../assets/images/profile-default.png')} style={styles.image4}></Image>
+                                :
+                                <Image source={profile} style={styles.image4}></Image>
+                        }
+                    </Pressable>
                 </View>
 
             </View>
             {/* hEADER */}
 
             <Animated.View style={[styles.view14, animatedStyle1]}>
-                <View style={styles.view9}></View>
+                <View style={[styles.view9, styles.width_full]}></View>
                 <FlashList
                     data={getChatArray}
                     renderItem={({ item }) =>
@@ -243,11 +250,100 @@ function Search() {
     );
 }
 
-function Profile() {
+function Profile({ navigation }) {
+    const [name, setName] = useState("");
+    const [profile, setProfile] = useState("");
+    const [user, setUser] = useState("");
+
+    const [loaded, error] = useFonts({
+        'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
+        'Inter-SemiBold': require('../assets/fonts/Inter-SemiBold.ttf'),
+        'Inter-Bold': require('../assets/fonts/Inter-Bold.ttf'),
+        'Inter-Regular': require('../assets/fonts/Inter-Regular.ttf'),
+        'Inter-Light': require('../assets/fonts/Inter-Light.ttf'),
+
+    });
+
+    const fetchChatData = async () => {
+        const userJson = await AsyncStorage.getItem("user");
+        let user = JSON.parse(userJson);
+        setUser(user);
+        setName(user.first_name);
+    }
+
+
+    useEffect(() => {
+        fetchProfilePic();
+        router.push('/profile');
+    }, [user]);
+
+    async function fetchProfilePic() {
+        if (user && user.mobile) {
+            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + user.mobile + ".jpg";
+            const response = await fetch(imagePath);
+
+            if (response.ok) {
+                setProfile(imagePath);
+            } else {
+                setProfile(null);
+            }
+        }
+    }
+
+    useEffect(() => {
+        const chatFocus = navigation.addListener('focus', () => {
+            fetchChatData();
+
+        });
+        return () => {
+            chatFocus();
+        };
+    }, [navigation]);
+
+
+    useEffect(() => {
+        if (loaded || error) {
+            SplashScreen.hideAsync();
+        }
+    }, [loaded, error]);
+
+    if (!loaded && !error) {
+        return null;
+    }
+
+
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>Profile!</Text>
+        <View style={styles.view1}>
+            <Image source={backgroundPath} style={styles.image1}></Image>
+
+            {/* hEADER */}
+            <View style={styles.view2}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', }}>
+                    <View style={styles.view3}>
+                        <FontAwesome6 name="magnifying-glass" size={20} color={"white"} />
+                    </View>
+                </View>
+                <View style={styles.view4}>
+                    <Text style={styles.text1}>Welcome, </Text>
+                    <Text style={styles.text2}>{name}</Text>
+                    <Image source={require('../assets/icons/peace.svg')} style={styles.image3}></Image>
+                </View>
+                <View style={{ flex: 1, }}>
+                    <Pressable style={styles.view15} onPress={() => {
+                        router.push('/profile');
+                    }}>
+                        {
+                            profile == null ?
+                                <Image source={require('../assets/images/profile-default.png')} style={styles.image4}></Image>
+                                :
+                                <Image source={profile} style={styles.image4}></Image>
+                        }
+                    </Pressable>
+                </View>
+
+            </View>
         </View>
+
     );
 }
 const Tab = createBottomTabNavigator();
@@ -345,6 +441,7 @@ const styles = StyleSheet.create({
         // marginLeft: 25,
     },
     view4: {
+        flex: 2,
         flexDirection: 'row',
     },
     image3: {
@@ -409,11 +506,18 @@ const styles = StyleSheet.create({
     view9: {
         backgroundColor: '#E5E6E9',
         borderRadius: 30,
-        width: 109,
         height: 5,
         position: 'absolute',
         top: 15,
         alignSelf: 'center',
+
+    },
+    width_full: {
+        width: 109,
+
+    },
+    width_small: {
+        width: 50,
 
     },
     view14: {
@@ -434,6 +538,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         // marginRight: 25,
+        right: 0,
     },
     view16: {
         flex: 1,
@@ -448,6 +553,41 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#ffffff',
 
+    },
+    view19: {
+        height: '50%',
+        alignItems: 'center',
+        justifyContent: 'center',
+        rowGap: 15,
+
+    },
+    view20: {
+        position: 'relative',
+    },
+    view21: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#FFCB45',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: 5,
+        right: 10,
+    },
+    image7: {
+        width: 150,
+        height: 150,
+        borderRadius: 75,
+    },
+    view22: {
+        flexDirection: 'row',
+        columnGap: 20,
+    },
+    text4: {
+        fontFamily: 'Poppins-Bold',
+        fontSize: 20,
+        color: '#ffffff',
     },
 
 });

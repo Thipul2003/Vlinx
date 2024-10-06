@@ -7,7 +7,6 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from "expo-status-bar";
 import { FlashList } from "@shopify/flash-list";
-import { NGROK_URL } from './Constants';
 
 const backgroundPath = require('../assets/images/background2.png');
 
@@ -20,6 +19,8 @@ export default function Home() {
 
     const flashListRef = useRef(null);  // Create ref for FlashList
     const intervalRef = useRef(null);  // Ref to store the interval
+
+    const NGROK_URL = process.env.EXPO_PUBLIC_URL;
 
     const local = useLocalSearchParams();
     const other_user_chat = JSON.parse(local.chatObject);
