@@ -42,7 +42,11 @@ export function CustomChat(props) {
             </View>
             <View style={styles.view11}>
                 <Text style={styles.text4} numberOfLines={1}>{props.name}</Text>
-                <Text style={styles.text5} numberOfLines={1}>{props.message}</Text>
+                {
+                    props.msgDisplay ?
+                        <Text style={styles.text5} numberOfLines={1}>{props.message}</Text>
+                        : null
+                }
             </View>
             <View style={styles.view12}>
                 <Text style={styles.text6}>{props.time}</Text>

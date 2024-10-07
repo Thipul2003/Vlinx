@@ -16,8 +16,6 @@ export default function SelectProfile() {
     const [getReloadState, setReloadState] = useState(false);
     const NGROK_URL = process.env.EXPO_PUBLIC_URL;
 
-
-
     const user_mobile = useLocalSearchParams().mobile;
 
     const [loaded, error] = useFonts({

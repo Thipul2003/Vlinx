@@ -14,14 +14,14 @@ import { router } from "expo-router";
 const backgroundPath = require('../assets/images/background2.png');
 const NGROK_URL = process.env.EXPO_PUBLIC_URL;
 
-export default function Profile() {
+export function Profile() {
 
     const [user, setUser] = useState(null);
     const [fname, setFname] = useState("");
     const [lname, setLname] = useState("");
     const [mobile, setMobile] = useState("");
     const [password, setPassword] = useState("");
-    const [profile, setProfile] = useState("");
+    const [profile, setProfile] = useState(null);
 
     const [loaded, error] = useFonts({
         'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
@@ -52,6 +52,14 @@ export default function Profile() {
             }
         }
     }
+    useEffect(() => {
+        if (profile) {
+            console.log("Profile image state updated: ", profile);
+            updateUser();
+        }
+    }, []);
+
+
 
     useEffect(() => {
         fetchProfilePic();
@@ -63,12 +71,18 @@ export default function Profile() {
 
     const handleImagePick = async () => {
         try {
-            let result = await ImagePicker.launchImageLibraryAsync({});
+            let result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images, // Ensure we are only picking images
+            });
+
             if (!result.canceled) {
-                setProfile(result.assets[0].uri);
-                updateUser();
+                const selectedImageUri = result.assets[0].uri;
+                console.log("Selected image URI: ", selectedImageUri);
+                setProfile(selectedImageUri);
+            } else {
+                console.log("Image selection was canceled");
             }
-        } catch (e) {
+        } catch (error) {
             Alert.alert("Error", "Failed to pick image");
         }
     };
@@ -76,7 +90,7 @@ export default function Profile() {
 
     const translateY1 = useSharedValue(800);
     const opacityIntensity = useSharedValue(0);
-    const translateY2 = useSharedValue(-90);
+    const translateY2 = useSharedValue(-85);
     const translateX2 = useSharedValue(145);
     const scaleX1 = useSharedValue(0.33);
     const scaleY1 = useSharedValue(0.33);
@@ -108,6 +122,10 @@ export default function Profile() {
         opacityIntensity.value = withTiming(1, { duration: 1000 });
 
     };
+    function toggleViewDown() {
+        translateY1.value = withTiming(1000, { duration: 800 });
+
+    };
 
     function slideScaleUp() {
         translateY2.value = withTiming(0, { duration: 800 });
@@ -118,21 +136,14 @@ export default function Profile() {
     };
 
     function slideScaleDown() {
-        translateY2.value = withTiming(-90, { duration: 800 });
+        translateY2.value = withTiming(-85, { duration: 800 });
         translateX2.value = withTiming(145, { duration: 800 });
         scaleX1.value = withTiming(0.33, { duration: 1000 });
         scaleY1.value = withTiming(0.33, { duration: 1000 });
 
     };
 
-
-
     const updateUser = async () => {
-        console.log(fname);
-        console.log(lname);
-        console.log(password);
-        console.log(profile);
-
         const dataForm = new FormData();
         dataForm.append("firstName", fname);
         dataForm.append("lastName", lname);
@@ -142,7 +153,7 @@ export default function Profile() {
 
         if (profile != null) {
             dataForm.append("profileImage", {
-                name: "profileImage",
+                name: "profile",
                 type: "image/jpg",
                 uri: profile,
             });
@@ -152,31 +163,26 @@ export default function Profile() {
         const response = await fetch(NGROK_URL + "/Vlinx/UpdateUser", {
             method: "POST",
             body: dataForm,
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
 
         if (response.ok) {
+            const json = await response.json();
+            console.log(json.message);
+            if (json.success) {
+                let user = JSON.stringify(json.message);
+                await AsyncStorage.removeItem("user");
+                await AsyncStorage.setItem("user", user);
+                fetchProfilePic();
+            }
 
         } else {
             Alert.alert("Error", "Server Error");
         }
 
     }
-
-    // useEffect(() => {
-    //     const profileFocus = navigation.addListener('focus', () => {
-    //         toggleViewUp();
-
-    //     });
-
-    //     const profileBlur = navigation.addListener('blur', () => {
-    //         toggleViewDown();
-    //     });
-
-    //     return () => {
-    //         profileBlur();
-    //         profileFocus();
-    //     };
-    // }, []);
 
 
     useEffect(() => {
@@ -192,13 +198,13 @@ export default function Profile() {
 
 
     return (
-        <View style={styles.view1}>
+        <View style={styles2.view1}>
             {/* <Reload state={getReloadState} /> */}
             <StatusBar hidden={true} />
-            <Image contentFit="cover" source={backgroundPath} style={styles.image1}></Image>
+            <Image contentFit="cover" source={backgroundPath} style={styles2.image1}></Image>
             {/* hEADER */}
-            <View style={styles.view5}>
-                <Pressable style={[styles.view3, styles.alignSelf_Start]} onPress={() => {
+            <View style={styles2.view5}>
+                <Pressable style={[styles2.view3, styles2.alignSelf_Start]} onPress={() => {
                     slideScaleDown();
                     setTimeout(() => {
                         router.push('/home');
@@ -206,54 +212,54 @@ export default function Profile() {
                 }}>
                     <FontAwesome6 name="arrow-left-long" size={20} color={"white"} />
                 </Pressable>
-                <View style={styles.view6}>
+                <View style={styles2.view6}>
                     <Animated.View style={[profileSlide]}>
                         {
                             profile == null ?
-                                <Image source={require('../assets/images/profile-default.png')} style={styles.image7}></Image>
+                                <Image source={require('../assets/images/profile-default.png')} style={styles2.image7}></Image>
                                 :
-                                <Image source={profile} style={[styles.image7]}></Image>
+                                <Image source={profile} style={[styles2.image7]}></Image>
                         }
                     </Animated.View>
-                    <Pressable style={styles.view7} onPress={handleImagePick}>
+                    <Pressable style={styles2.view7} onPress={handleImagePick}>
                         <FontAwesome6 name="pen" size={15} color={"#000000"} />
                     </Pressable>
                 </View>
-                <Text style={styles.text4}>{fname + " " + lname}</Text>
-                <View style={styles.view22}>
-                    <View style={[styles.view3, styles.translucent_color]}>
+                <Text style={styles2.text4}>{fname + " " + lname}</Text>
+                <View style={styles2.view22}>
+                    <View style={[styles2.view3, styles2.translucent_color]}>
                         <FontAwesome6 name="message" size={18} color={"white"} />
                     </View>
-                    <View style={[styles.view3, styles.translucent_color]}>
+                    <View style={[styles2.view3, styles2.translucent_color]}>
                         <FontAwesome6 name="camera" size={18} color={"white"} />
                     </View>
-                    <View style={[styles.view3, styles.translucent_color]}>
+                    <View style={[styles2.view3, styles2.translucent_color]}>
                         <FontAwesome6 name="phone" size={18} color={"white"} />
                     </View>
-                    <View style={[styles.view3, styles.translucent_color]}>
+                    <View style={[styles2.view3, styles2.translucent_color]}>
                         <FontAwesome6 name="ellipsis-vertical" size={18} color={"white"} />
                     </View>
                 </View>
             </View>
             {/* hEADER */}
-            <Animated.View style={[styles.view8, animatedStyle1]}>
-                <View style={[styles.view4, styles.width_small]}></View>
+            <Animated.View style={[styles2.view8, animatedStyle1]}>
+                <View style={[styles2.view4, styles2.width_small]}></View>
                 <ScrollView>
-                    <View style={styles.view2}>
-                        <Text style={styles.text1}>First Name</Text>
-                        <TextInput style={styles.input1} value={fname} inputMode="text" onChangeText={setFname} onEndEditing={updateUser} />
+                    <View style={styles2.view2}>
+                        <Text style={styles2.text1}>First Name</Text>
+                        <TextInput style={styles2.input1} value={fname} inputMode="text" onChangeText={setFname} onEndEditing={updateUser} />
                     </View>
-                    <View style={styles.view2}>
-                        <Text style={styles.text1}>Last Name</Text>
-                        <TextInput style={styles.input1} inputMode="text" value={lname} onChangeText={setLname} onEndEditing={updateUser} />
+                    <View style={styles2.view2}>
+                        <Text style={styles2.text1}>Last Name</Text>
+                        <TextInput style={styles2.input1} inputMode="text" value={lname} onChangeText={setLname} onEndEditing={updateUser} />
                     </View>
-                    <View style={styles.view2}>
-                        <Text style={styles.text1}>Phone Number</Text>
-                        <TextInput style={styles.input1} value={mobile} maxLength={10} inputMode="tel" />
+                    <View style={styles2.view2}>
+                        <Text style={styles2.text1}>Phone Number</Text>
+                        <TextInput style={styles2.input1} value={mobile} maxLength={10} inputMode="tel" />
                     </View>
-                    <View style={styles.view2}>
-                        <Text style={styles.text1}>Password</Text>
-                        <TextInput style={styles.input1} secureTextEntry={true} value={password} onChangeText={setPassword} onEndEditing={updateUser} />
+                    <View style={styles2.view2}>
+                        <Text style={styles2.text1}>Password</Text>
+                        <TextInput style={styles2.input1} secureTextEntry={true} value={password} onChangeText={setPassword} onEndEditing={updateUser} />
                     </View>
                 </ScrollView>
 
@@ -262,7 +268,7 @@ export default function Profile() {
     );
 }
 
-const styles = StyleSheet.create({
+const styles2 = StyleSheet.create({
     view1: {
         flex: 1,
         backgroundColor: '#000000',
