@@ -44,6 +44,30 @@ export default function Home() {
         return null;
     }
 
+    const ws = new WebSocket(NGROK_URL + "/Vlinx/chatEndPoint");
+
+    useEffect(() => {
+        ws.onopen = () => {
+            // connection opened
+            console.log("Connection opened");
+        };
+
+        ws.onmessage = e => {
+            // a message was received
+        };
+
+        ws.onerror = e => {
+            // an error occurred
+            console.log("OnError");
+
+        };
+
+        ws.onclose = e => {
+            // connection closed
+            console.log("OnClose");
+
+        };
+    }, []);
     useEffect(() => {
         async function fetchProfilePic() {
             const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + other_user_chat.mobile + ".jpg";
@@ -64,6 +88,7 @@ export default function Home() {
         if (response.ok) {
             const json = await response.json();
 
+            console.log(json);
             if (json.empty) {
 
             } else {
@@ -79,13 +104,13 @@ export default function Home() {
     };
 
     useEffect(() => {
-        fetchChatData();
+        // fetchChatData();
 
         intervalRef.current = setInterval(() => {
-            fetchChatData();
+            // fetchChatData();
         }, 500);
 
-        // Cleanup function to clear interval when component unmounts or navigates away
+        
         return () => {
             clearInterval(intervalRef.current);
         };
@@ -104,6 +129,9 @@ export default function Home() {
                 if (flashListRef.current) {
                     flashListRef.current.scrollToEnd({ animated: true });
                 }
+            } else {
+                setMessage(null);
+                Alert.alert("Message", "Type Chat to send");
             }
         } else {
             Alert.alert("Error", "Server Error");
@@ -186,12 +214,13 @@ export default function Home() {
                     value={message}
                     onChangeText={(text) => {
                         if (text.length === 0) {
+                            setMessage(null);
                             setSendIcon("microphone");
                         } else {
                             setSendIcon("paper-plane");
+                            setMessage(text);
 
                         }
-                        setMessage(text);
 
                     }}
                     placeholderTextColor={"#000000"}
@@ -202,7 +231,7 @@ export default function Home() {
                     <FontAwesome6 name="plus" size={20} color={"#000000"} />
                 </View>
 
-                <Pressable style={[styles.view11, styles.end]} onPress={handleChatSend}>
+                <Pressable style={[styles.view11, styles.end]} disabled={!message || message.length === 0} onPress={handleChatSend}>
                     <FontAwesome6 name={sendIcon} size={20} color={"#000000"} />
                 </Pressable>
 

@@ -9,6 +9,8 @@ export function CustomChat(props) {
     const [loaded, error] = useFonts({
         'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
         'Inter-Bold': require('../assets/fonts/Inter-Bold.ttf'),
+        'Poppins-Medium': require('../assets/fonts/Poppins-Medium.ttf'),
+
 
     });
 
@@ -41,22 +43,32 @@ export function CustomChat(props) {
                 <View style={[styles.view13, props.userStatus == 1 ? styles.display_flex : styles.display_none]}></View>
             </View>
             <View style={styles.view11}>
-                <Text style={styles.text4} numberOfLines={1}>{props.name}</Text>
+                <Text style={[styles.text4, props.textDark ? styles.text_dark : styles.text_white]} numberOfLines={1}>{props.name}</Text>
                 {
-                    props.msgDisplay ?
+                    props.msgHidden ?
                         <Text style={styles.text5} numberOfLines={1}>{props.message}</Text>
                         : null
                 }
             </View>
             <View style={styles.view12}>
-                <Text style={styles.text6}>{props.time}</Text>
-                {
-                    props.chatStatus == 1 ?
-                        <Image source={require('../assets/icons/ph_checks-fill.svg')} style={styles.image8}></Image>
-                        :
-                        <Image source={require('../assets/icons/ph_checks-fill-blue.svg')} style={styles.image8}></Image>
 
-                }
+                <Text style={[styles.text6, props.dateHidden ? styles.display_flex : styles.display_none]}>{props.time}</Text>
+                <View style={{ flexDirection: 'row', columnGap: 10, }}>
+                    {
+                        props.msgCount != 0 ?
+                            <View style={[styles.view1, props.countViewColor == "#ffffff" ? styles.background_white : styles.background_green]}>
+                                <Text style={[styles.text1, props.countViewColor == "#ffffff" ? styles.text_dark : styles.text_white]}>{props.msgCount}</Text>
+                            </View>
+                            : null
+                    }
+
+                    {
+                        props.chatStatus == 1 ?
+                            <Image source={require('../assets/icons/ph_checks-fill.svg')} style={[styles.image8, props.checkVisible ? styles.display_flex : styles.display_none]}></Image>
+                            :
+                            <Image source={require('../assets/icons/ph_checks-fill-blue.svg')} style={[styles.image8, props.checkVisible ? styles.display_flex : styles.display_none]}></Image>
+                    }
+                </View>
                 {/* <Image source={require('../assets/icons/ph_checks-fill.svg')} style={styles.image8}></Image> */}
             </View>
         </Pressable>
@@ -65,7 +77,33 @@ export function CustomChat(props) {
 }
 
 const styles = StyleSheet.create({
+    view1: {
+        width: 25,
+        height: 25,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    background_white: {
+        backgroundColor: '#ffffff',
+    },
+    background_green: {
+        backgroundColor: '#F9B608',
+    },
+    text1: {
+        fontSize: 12,
+        color: '#ffffff',
+    },
+    text_white: {
+        color: '#ffffff',
+        fontFamily: 'Inter-Medium',
+        fontSize: 15,
+    },
+    text_dark: {
+        color: '#000000',
+        fontFamily: 'Inter-Bold',
 
+    },
     view10: {
         flex: 1,
         alignItems: 'center',
@@ -115,7 +153,6 @@ const styles = StyleSheet.create({
     text4: {
         fontSize: 15,
         fontFamily: 'Inter-Bold',
-        color: '#000000',
     },
     text5: {
         fontSize: 14,
