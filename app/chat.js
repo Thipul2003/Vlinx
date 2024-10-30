@@ -1,7 +1,7 @@
 import { useFonts } from "expo-font";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
+import { FontAwesome, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from 'expo-router';
@@ -16,9 +16,12 @@ export default function Home() {
     const [profile, setProfile] = useState("");
     const [sendIcon, setSendIcon] = useState("microphone");
     const [message, setMessage] = useState("");
+    const [visibleItem, setVisibleItem] = useState(null);
+    const [emptyChatVisible, setEmptyChatVisibility] = useState(false);
 
-    const flashListRef = useRef(null);  // Create ref for FlashList
-    const intervalRef = useRef(null);  // Ref to store the interval
+
+    const flashListRef = useRef(null);
+    const intervalRef = useRef(null);
 
     const NGROK_URL = process.env.EXPO_PUBLIC_URL;
 
@@ -46,7 +49,7 @@ export default function Home() {
 
     useEffect(() => {
         async function fetchProfilePic() {
-            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + other_user_chat.mobile + ".jpg";
+            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + other_user_chat.mobile + ".jpg?t=" + new Date().getTime();
             const response = await fetch(imagePath);
 
             if (response.ok) {
@@ -58,6 +61,8 @@ export default function Home() {
         fetchProfilePic();
     }, []);
 
+
+
     const fetchChatData = async () => {
         const response = await fetch(NGROK_URL + "/Vlinx/LoadChat?logged_user_id=" + logged_user.id + "&other_user_id=" + other_user_chat.id);
 
@@ -65,54 +70,85 @@ export default function Home() {
             const json = await response.json();
 
             if (json.empty) {
-
+                console.log(json);
+                setEmptyChatVisibility(true);
             } else {
                 setChatArray(json.chatArray);
-
                 if (flashListRef.current) {
                     flashListRef.current.scrollToEnd({ animated: true });
                 }
+
             }
         } else {
             Alert.alert("Error", "Server Error");
         }
     };
 
-    useEffect(() => {
-        fetchChatData();
 
+
+    useEffect(() => {
         intervalRef.current = setInterval(() => {
             fetchChatData();
         }, 500);
 
-        // Cleanup function to clear interval when component unmounts or navigates away
+
         return () => {
             clearInterval(intervalRef.current);
         };
     }, []);
 
+
+
+
     const handleChatSend = async () => {
         const response = await fetch(NGROK_URL + "/Vlinx/SendChat?logged_user_id=" + logged_user.id + "&other_user_id=" + other_user_chat.id + "&message=" + message);
+
 
         if (response.ok) {
             const json = await response.json();
             if (json.message) {
                 setMessage("");
                 setChatArray([...getChatArray], { message, side: "right", date_time: "now", status: 1 });  // Update chatArray with new message
-
-                // Scroll to the bottom after new message is added
+                setTimeout(() => {
+                    setEmptyChatVisibility(false);
+                }, 200);
                 if (flashListRef.current) {
                     flashListRef.current.scrollToEnd({ animated: true });
                 }
+
+            } else {
+                setMessage(null);
+                Alert.alert("Message", "Type Chat to send");
             }
         } else {
             Alert.alert("Error", "Server Error");
         }
     };
 
+
+
+
+    const deleteMessage = async (id) => {
+        const response = await fetch(NGROK_URL + "/Vlinx/DeleteChat?chat_id=" + id);
+
+        if (response.ok) {
+            const json = await response.json();
+            if (json.success) {
+                setVisibleItem(0);
+            } else {
+                Alert.alert("Message", "Message not Deleted");
+            }
+
+        } else {
+
+        }
+    }
+
+
+
     const handleBack = () => {
         clearInterval(intervalRef.current);
-        router.back();  // Navigate back
+        router.back();
     };
 
     return (
@@ -150,30 +186,62 @@ export default function Home() {
 
 
             <View style={styles.view14}>
-                <FlashList
-                    ref={flashListRef}  // Attach ref to FlashList
-                    data={getChatArray}
-                    renderItem={({ item }) =>
-                        <View style={styles.view12}>
-                            <View style={[styles.view13, item.side == "right" ? styles.from_chat : styles.to_chat]}>
-                                <Text style={styles.text4}>{item.message}</Text>
+                {
+                    emptyChatVisible ?
+                        (
+                            <View style={styles.view18}>
+                                <Image style={styles.image7} source={require('../assets/images/chat-bubble.png')} />
+                                <Text style={styles.text6}>No messages yet...</Text>
+                                <Text style={styles.text7}>Be the one to break the ice</Text>
+
                             </View>
-                            <View style={[styles.view16, item.side == "right" ? styles.left : styles.right]}>
-                                <Text style={styles.text5}>{item.date_time}</Text>
-                                {
-                                    item.side == "right" ?
-                                        item.status == 1 ?
-                                            <Image source={require('../assets/icons/ph_checks-fill.svg')} style={styles.image2}></Image>
-                                            :
-                                            <Image source={require('../assets/icons/ph_checks-fill-blue.svg')} style={styles.image2}></Image>
-                                        :
-                                        null
+                        )
+                        :
+                        (
+                            <FlashList
+                                ref={flashListRef} // Attach ref to FlashList
+                                data={getChatArray}
+                                renderItem={({ item }) =>
+                                    <Pressable style={styles.view12} onPress={() => {
+
+                                    }} onLongPress={() => {
+                                        setVisibleItem(item.id);
+                                    }}>
+
+                                        {
+                                            visibleItem === item.id ?
+                                                <Pressable style={[styles.view17, item.side === "right" ? styles.delete_right : styles.display_none]} onPress={() => {
+                                                    deleteMessage(item.id);
+                                                }}>
+                                                    <FontAwesome6 name={"trash-arrow-up"} size={20} color={"black"} />
+                                                </Pressable>
+                                                :
+                                                null
+                                        }
+
+
+                                        <View style={[styles.view13, item.side == "right" ? styles.from_chat : styles.to_chat]}>
+                                            <Text style={styles.text4}>{item.message}</Text>
+                                        </View>
+                                        <View style={[styles.view16, item.side == "right" ? styles.left : styles.right]}>
+
+                                            <Text style={styles.text5}>{item.date_time}</Text>
+                                            {
+                                                item.side == "right" ?
+                                                    item.status == 1 ?
+                                                        <Image source={require('../assets/icons/ph_checks-fill.svg')} style={styles.image2}></Image>
+                                                        :
+                                                        <Image source={require('../assets/icons/ph_checks-fill-blue.svg')} style={styles.image2}></Image>
+                                                    :
+                                                    null
+                                            }
+                                        </View>
+                                    </Pressable>
                                 }
-                            </View>
-                        </View>
-                    }
-                    estimatedItemSize={200}
-                />
+                                estimatedItemSize={200}
+                            />
+                        )
+                }
             </View>
 
 
@@ -186,12 +254,13 @@ export default function Home() {
                     value={message}
                     onChangeText={(text) => {
                         if (text.length === 0) {
+                            setMessage(null);
                             setSendIcon("microphone");
                         } else {
                             setSendIcon("paper-plane");
+                            setMessage(text);
 
                         }
-                        setMessage(text);
 
                     }}
                     placeholderTextColor={"#000000"}
@@ -202,13 +271,13 @@ export default function Home() {
                     <FontAwesome6 name="plus" size={20} color={"#000000"} />
                 </View>
 
-                <Pressable style={[styles.view11, styles.end]} onPress={handleChatSend}>
+                <Pressable style={[styles.view11, styles.end]} disabled={!message || message.length === 0} onPress={handleChatSend}>
                     <FontAwesome6 name={sendIcon} size={20} color={"#000000"} />
                 </Pressable>
 
                 <View style={styles.view9}></View>
             </View>
-        </View>
+        </View >
     );
 }
 
@@ -356,6 +425,8 @@ const styles = StyleSheet.create({
     },
     view12: {
         paddingHorizontal: 20,
+        justifyContent: 'center',
+        // backgroundColor: 'yellow'
     },
 
     view16: {
@@ -378,6 +449,7 @@ const styles = StyleSheet.create({
         height: 18,
     },
     view13: {
+        maxWidth: '80%',
         paddingVertical: 16,
         borderRadius: 50,
         justifyContent: 'center',
@@ -401,6 +473,49 @@ const styles = StyleSheet.create({
     },
     light_grey: {
         color: '#d9d9d98a',
-    }
+    },
+    view17: {
+        width: 50,
+        height: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+
+    },
+    delete_right: {
+        alignSelf: 'flex-start',
+        top: '10%',
+
+    },
+    delete_left: {
+        alignSelf: 'flex-end',
+        top: '50%',
+
+    },
+    display_flex: {
+        display: 'flex',
+    },
+    display_none: {
+        display: 'none',
+    },
+    view18: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    text6: {
+        fontSize: 18,
+        fontFamily: 'Inter-Bold',
+    },
+    text7: {
+        fontSize: 15,
+        fontFamily: 'Inter-Medium',
+        color: 'grey'
+    },
+    image7: {
+        width: 250,
+        height: 150,
+        marginBottom: 20,
+    },
 
 });

@@ -1,12 +1,11 @@
 import { useFonts } from "expo-font";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Dimensions, LayoutAnimation, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
+import { Alert, Button, Dimensions, LayoutAnimation, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FontAwesome6 } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { Image } from "expo-image";
-import { Link, Navigator, router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { CustomChat } from "../components/CustomChat";
-import { CustomSelector } from "../components/CustomSelector";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlashList } from "@shopify/flash-list";
@@ -16,18 +15,27 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Reload } from "../components/reload";
 import * as ImagePicker from 'expo-image-picker';
 
+
 const backgroundPath = require('../assets/images/background2.png');
 const NGROK_URL = process.env.EXPO_PUBLIC_URL;
+
+async function clearCache() {
+    const cacheDir = FileSystem.cacheDirectory;
+    await FileSystem.deleteAsync(cacheDir, { idempotent: true });
+}
 
 
 function Chats({ navigation }) {
 
     const [getChatArray, setChatArray] = useState([]);
     const [name, setName] = useState("");
-    const [profile, setProfile] = useState(null);
-    const [user, setUser] = useState("");
+    const [profile, setProfile] = useState("");
+    const [getUser, setUser] = useState("");
     const [getReloadState, setReloadState] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedProfile, setSelectedProfile] = useState(null);
+
 
 
     const intervalRef = useRef(null);  // Ref to store the interval
@@ -41,25 +49,47 @@ function Chats({ navigation }) {
 
     });
 
+    useEffect(() => {
+        const chatFocus = navigation.addListener('focus', () => {
+            fetchChatData();
+            fetchProfilePic();
+            toggleViewUp();
+
+        });
+
+        const chatBlur = navigation.addListener('blur', () => {
+            toggleViewDown();
+        });
+
+        return () => {
+            chatBlur();
+            chatFocus();
+        };
+    }, [navigation]);
+
+
     const fetchChatData = async () => {
+
         const userJson = await AsyncStorage.getItem("user");
-        let user = JSON.parse(userJson);
-        setUser(user);
+        let storageUser = JSON.parse(userJson);
         setReloadState(true);
 
-        if (user == null) {
+        if (storageUser == null) {
             router.replace("/signin");
         } else {
-            setUser(user);
-            const response = await fetch(NGROK_URL + "/Vlinx/LoadHomeData?id=" + user.id);
+            const response = await fetch(NGROK_URL + "/Vlinx/LoadHomeData?id=" + storageUser.id);
 
             if (response.ok) {
                 const json = await response.json();
                 if (json.success) {
+
                     const user = json.user;
                     const chatArray = json.jsonChatArray;
-                    setName(user.first_name);
+
+                    setUser(user);
                     setChatArray(chatArray);
+                    setName(user.first_name);
+
                     setReloadState(false);
 
                 }
@@ -73,7 +103,7 @@ function Chats({ navigation }) {
     }
     useEffect(() => {
         fetchProfilePic();
-    }, [user]);
+    }, [getUser]);
 
     useEffect(() => {
         // intervalRef.current = setInterval(() => {
@@ -113,34 +143,28 @@ function Chats({ navigation }) {
 
 
     async function fetchProfilePic() {
-        if (user && user.mobile) {
-            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + user.mobile + ".jpg";
-            const response = await fetch(imagePath);
 
-            if (response.ok) {
-                setProfile(imagePath);
-            } else {
-                setProfile(null);
-            }
+        const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + getUser.mobile + ".jpg?t=" + new Date().getTime();
+
+        const response = await fetch(imagePath);
+
+        if (response.ok) {
+            setProfile(imagePath);
+        } else {
+            setProfile(null);
         }
+
     }
 
-    useEffect(() => {
-        const chatFocus = navigation.addListener('focus', () => {
-            fetchChatData();
-            toggleViewUp();
+    const openProfileModal = (profilePath) => {
+        setSelectedProfile(profilePath);
+        setModalVisible(true);
+    };
 
-        });
-
-        const chatBlur = navigation.addListener('blur', () => {
-            toggleViewDown();
-        });
-
-        return () => {
-            chatBlur();
-            chatFocus();
-        };
-    }, [navigation]);
+    const closeProfileModal = () => {
+        setModalVisible(false);
+        setSelectedProfile(null);
+    };
 
 
     useEffect(() => {
@@ -153,11 +177,9 @@ function Chats({ navigation }) {
         return null;
     }
 
-
     return (
         <View style={styles.view1}>
             <Reload state={getReloadState} />
-
             <Image source={backgroundPath} style={styles.image1}></Image>
 
             {/* hEADER */}
@@ -178,11 +200,17 @@ function Chats({ navigation }) {
                     <Pressable style={styles.view15} onPress={() => {
                         navigation.navigate('Profile');
                     }}>
+
                         {
+
                             profile == null ?
                                 <Image source={require('../assets/images/profile-default.png')} style={styles.image4}></Image>
                                 :
                                 <Image source={profile} style={styles.image4}></Image>
+                        }
+
+                        {
+
                         }
                     </Pressable>
                 </View>
@@ -199,12 +227,19 @@ function Chats({ navigation }) {
                             chatObject={item}
                             chatStatus={item.chat_status_id}
                             userStatus={item.user_status}
-                            profilePath={item.profile_uploaded ? NGROK_URL + "/Vlinx/ProfileImages/" + item.mobile + ".jpg" : require('../assets/images/profile-default.png')}
+                            profilePath={item.profile_uploaded ? NGROK_URL + "/Vlinx/ProfileImages/" + item.mobile + ".jpg?t=" + new Date().getTime() : require('../assets/images/profile-default.png')}
                             name={item.name}
                             message={item.message}
                             time={item.date_time}
-                            user={user}
-                            msgDisplay={true}
+                            user={getUser}
+                            msgHidden={true}
+                            dateHidden={true}
+                            checkVisible={true}
+                            msgCountVisible={true}
+                            msgCount={item.un_seen_count}
+                            textDark={true}
+                            countViewColor={"#F9B608"}
+                            profileClick={openProfileModal}
 
                         />
                     }
@@ -214,6 +249,21 @@ function Chats({ navigation }) {
                     }
                     estimatedItemSize={200}
                 />
+                <Modal visible={modalVisible} transparent={true} onRequestClose={closeProfileModal}>
+                    <View style={styles.modalBackground}>
+                        <Pressable style={styles.modalCloseArea} onPress={closeProfileModal} />
+                        <View style={styles.modalContent}>
+                            {
+                                selectedProfile ?
+                                    <Image source={selectedProfile} style={styles.largeImage} />
+                                    :
+                                    <Image source={require('../assets/images/profile-default.png')} style={styles.largeImage} />
+
+                            }
+                        </View>
+                        <Pressable style={styles.modalCloseArea} onPress={closeProfileModal} />
+                    </View>
+                </Modal>
             </Animated.View>
         </View>
 
@@ -238,6 +288,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
+
     },
     view3: {
         width: 44,
@@ -413,12 +464,39 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         width: 44,
         height: 44,
+        marginTop: 30,
     },
     view24: {
-        backgroundColor: 'red',
         flex: 1,
-        marginBottom: 50,
+        marginBottom: 10,
+        marginTop: 50,
+        marginHorizontal: 20,
         // position: 'absolute',
+    },
+
+
+    container: {
+        flex: 1,
+    },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: 10,
+        borderRadius: 10,
+    },
+    largeImage: {
+        width: 300,
+        height: 300,
+        // borderRadius: 150,
+    },
+    modalCloseArea: {
+        flex: 1,
+        width: '100%',
     },
 
 });
@@ -433,12 +511,29 @@ function Calls({ navigation }) {
 
 
 function Add({ navigation }) {
-    return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Button title="logout" onPress={async () => {
+
+    const handleLogout = async () => {
+        const userJson = await AsyncStorage.getItem("user");
+        const user = JSON.parse(userJson);
+        const response = await fetch(NGROK_URL + "/Vlinx/Logout?user_id=" + user.id);
+
+        if (response.ok) {
+
+            const json = await response.json();
+            if (json.success) {
                 await AsyncStorage.removeItem("user");
                 router.replace('/signin');
-            }}>Adds!</Button>
+            } else {
+                Alert.alert("Message", "Response not Found");
+            }
+
+        } else {
+            Alert.alert("Server Error");
+        }
+    }
+    return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Button title="logout" onPress={handleLogout}></Button>
         </View>
     );
 }
@@ -448,8 +543,8 @@ function Search({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [inputWidth, setInputWidth] = useState(50); // Default width
-    const [search, setSearch] = useState();
-
+    const [userArray, setUserArray] = useState([]);
+    const [user, setUser] = useState("");
 
     const [loaded, error] = useFonts({
         'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
@@ -459,6 +554,33 @@ function Search({ navigation }) {
         'Inter-Light': require('../assets/fonts/Inter-Light.ttf'),
 
     });
+    const ws = new WebSocket(NGROK_URL + "/Vlinx/socketEndPoint");
+
+    useEffect(() => {
+
+        ws.onopen = () => {
+            // connection opened
+            console.log("Connection opened");
+        };
+
+        ws.onmessage = e => {
+            // a message was received
+        };
+
+        ws.onerror = e => {
+            // an error occurred
+            console.log("OnError");
+
+        };
+
+        ws.onclose = e => {
+            // connection closed
+            console.log("OnClose");
+
+        };
+
+    }, [navigation]);
+
 
     const expandInput = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -470,6 +592,16 @@ function Search({ navigation }) {
         setInputWidth(50);
     };
 
+
+    useEffect(() => {
+        async function getUser() {
+            const userJson = await AsyncStorage.getItem("user");
+            setUser(JSON.parse(userJson));
+        }
+        getUser();
+    }, []);
+
+
     useEffect(() => {
 
         const SearchFocus = navigation.addListener('focus', () => {
@@ -480,7 +612,7 @@ function Search({ navigation }) {
         });
 
         const SearchBlur = navigation.addListener('blur', () => {
-            shrinkInput();
+            // shrinkInput();
             toggleViewUp();
         });
 
@@ -515,8 +647,25 @@ function Search({ navigation }) {
 
     };
 
+
+
+
+
     const handleUserSearch = (text) => {
-        Alert.alert("Success", text);
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                id: user.id,
+                name: text,
+            }));
+            ws.onmessage = e => {
+                // a message was received
+                const response = JSON.parse(e.data);
+                setUserArray(response.otherUserArray);
+            };
+            // console.log(userArray);
+        } else {
+            console.log("WebSocket is not open.");
+        }
     }
 
     useEffect(() => {
@@ -538,10 +687,11 @@ function Search({ navigation }) {
             <View style={styles.view23}>
 
                 <View style={{ width: inputWidth, paddingHorizontal: 20, position: 'relative', borderRadius: 25, justifyContent: 'center', alignItems: 'center' }} onFocus={expandInput}
-                    onBlur={shrinkInput}>
-                    <TextInput style={styles.input2} onChangeText={(text) => {
-                        setSearch(text);
-                        handleUserSearch(search);
+                >
+                    <TextInput style={styles.input2} onFocus={(text) => {
+                        handleUserSearch("");
+                    }} onChangeText={(text) => {
+                        handleUserSearch(text);
                     }} />
                     <FontAwesome6 name="magnifying-glass" size={20} color={"white"} style={{ position: 'absolute', right: 50, }} />
                     <Pressable style={{ position: 'absolute', left: 40, top: -10, zIndex: 1, }} onPress={() => {
@@ -558,26 +708,28 @@ function Search({ navigation }) {
 
             <Animated.View style={[styles.view24, animatedStyle1]}>
                 {/* <View style={[styles.view9, styles.width_full]}></View> */}
-                <Text>{search}</Text>
+                {/* <Text>{search}</Text> */}
                 <FlashList
-                    data={[]}
+                    data={userArray}
                     renderItem={({ item }) =>
                         <CustomChat
                             chatObject={item}
                             chatStatus={item.chat_status_id}
                             userStatus={item.user_status}
-                            profilePath={item.profile_uploaded ? NGROK_URL + "/Vlinx/ProfileImages/" + item.mobile + ".jpg" : require('../assets/images/profile-default.png')}
+                            profilePath={item.profile_uploaded ? NGROK_URL + "/Vlinx/ProfileImages/" + item.mobile + ".jpg?t=" + new Date().getTime() : require('../assets/images/profile-default.png')}
                             name={item.name}
-                            message={item.message}
-                            time={item.date_time}
-                            user={user}
                             msgDisplay={false}
+                            dateDisplay={false}
+                            checkVisible={false}
+                            msgCountVisible={false}
+                            msgCount={item.unseenCount}
+                            textDark={false}
+                            countViewColor={"#ffffff"}
+                            user={user}
+
+
 
                         />
-                    }
-                    keyExtractor={(item) => item.id}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
                     }
                     estimatedItemSize={200}
                 />
@@ -588,12 +740,13 @@ function Search({ navigation }) {
 
 function Profile({ navigation }) {
 
-    const [user, setUser] = useState(null);
+    const [getUser, setUser] = useState(null);
     const [fname, setFname] = useState("");
     const [lname, setLname] = useState("");
     const [mobile, setMobile] = useState("");
     const [password, setPassword] = useState("");
     const [profile, setProfile] = useState(null);
+    const [visible, setVisible] = useState(false);
 
     const [loaded, error] = useFonts({
         'Inter-Medium': require('../assets/fonts/Inter-Medium.ttf'),
@@ -607,27 +760,33 @@ function Profile({ navigation }) {
     async function fetchProfilePic() {
         const userJson = await AsyncStorage.getItem("user");
         let user = JSON.parse(userJson);
-        setUser(user);
         setFname(user.first_name);
         setLname(user.last_name);
         setMobile(user.mobile);
         setPassword(user.password);
 
         if (user && user.mobile) {
-            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + user.mobile + ".jpg";
+            const imagePath = NGROK_URL + "/Vlinx/ProfileImages/" + user.mobile + ".jpg?t=" + new Date().getTime();
+
             const response = await fetch(imagePath);
 
             if (response.ok) {
                 setProfile(imagePath);
+
             } else {
                 setProfile(null);
             }
+
         }
     }
+
+
     useEffect(() => {
         if (profile) {
             console.log("Profile image state updated: ", profile);
             updateUser();
+            fetchProfilePic();
+
         }
     }, []);
 
@@ -649,7 +808,7 @@ function Profile({ navigation }) {
 
             if (!result.canceled) {
                 const selectedImageUri = result.assets[0].uri;
-                console.log("Selected image URI: ", selectedImageUri);
+                // console.log("Selected image URI: ", selectedImageUri);
                 setProfile(selectedImageUri);
             } else {
                 console.log("Image selection was canceled");
@@ -728,6 +887,7 @@ function Profile({ navigation }) {
                 name: "profile",
                 type: "image/jpg",
                 uri: profile,
+                cache: "reload",
             });
         }
 
@@ -742,12 +902,19 @@ function Profile({ navigation }) {
 
         if (response.ok) {
             const json = await response.json();
-            console.log(json.message);
+
             if (json.success) {
-                let user = JSON.stringify(json.message);
-                await AsyncStorage.removeItem("user");
-                await AsyncStorage.setItem("user", user);
-                fetchProfilePic();
+                let userJson = JSON.stringify(json.message);
+                setUser(userJson);
+                let user = JSON.parse(userJson);
+
+                setFname(user.first_name);
+                setLname(user.last_name);
+                setMobile(user.mobile);
+                setPassword(user.password);
+                await AsyncStorage.setItem("user", userJson);
+                // fetchProfilePic();
+
             }
 
         } else {
@@ -851,11 +1018,22 @@ function Profile({ navigation }) {
                     </View>
                     <View style={styles2.view2}>
                         <Text style={styles2.text1}>Phone Number</Text>
-                        <TextInput style={styles2.input1} value={mobile} maxLength={10} inputMode="tel" />
+                        <TextInput style={styles2.input1} readOnly={true} value={mobile} maxLength={10} inputMode="tel" />
                     </View>
                     <View style={styles2.view2}>
                         <Text style={styles2.text1}>Password</Text>
-                        <TextInput style={styles2.input1} secureTextEntry={true} value={password} onChangeText={setPassword} onEndEditing={updateUser} />
+                        <TextInput style={styles2.input1} secureTextEntry={true} keyboardType={visible ? "visible-password" : "decimal-pad"} value={password} onChangeText={setPassword} onEndEditing={updateUser} />
+                        <Pressable style={[styles2.password, visible ? styles2.visible : styles2.hidden]} onPress={() => {
+                            setVisible(false);
+                        }}>
+                            <FontAwesome6 name={"eye"} size={20} color={"black"} />
+                        </Pressable>
+                        <Pressable style={[styles2.password, visible ? styles2.hidden : styles2.visible]} onPress={() => {
+                            setVisible(true);
+                        }}>
+                            <FontAwesome6 name={"eye-slash"} size={20} color={"black"} />
+                        </Pressable>
+
                     </View>
                 </ScrollView>
 
@@ -965,6 +1143,17 @@ const styles2 = StyleSheet.create({
         paddingTop: 42,
         paddingBottom: 50,
     },
+    password: {
+        position: 'absolute',
+        right: 10,
+        bottom: 10,
+    },
+    visible: {
+        display: 'flex',
+    },
+    hidden: {
+        display: 'none',
+    },
 
 });
 
@@ -1013,12 +1202,16 @@ function Tabs() {
             })
             }>
 
-            <Tab.Screen name="Messages" component={Chats} options={{ tabBarBadge: 3 }}></Tab.Screen>
+            <Tab.Screen name="Messages" component={Chats}></Tab.Screen>
             <Tab.Screen name="Calls" component={Calls}></Tab.Screen>
             <Tab.Screen name="Add" component={Add}></Tab.Screen>
             <Tab.Screen name="Search" component={Search} options={{
                 tabBarStyle: {
-                    display: 'none',
+                    height: 100,
+                    paddingBottom: 20,
+                    paddingTop: 20,
+                    backgroundColor: '#000000',
+                    borderColor: '#000000',
                 }
             }}></Tab.Screen>
             <Tab.Screen name="Profile" component={Profile} options={{
