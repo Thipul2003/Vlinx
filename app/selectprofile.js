@@ -49,41 +49,44 @@ export default function SelectProfile() {
     };
 
     const handleProfileUpload = async () => {
-        setReloadState(true);
-        const imageData = new FormData();
-        imageData.append("mobile", user_mobile);
-        if (getImage != null) {
-            imageData.append("ProfileImage",
-                {
-                    name: "profile",
-                    uri: getImage,
-                    type: "image/jpg",
+        if (getImage != profileDefault) {
+            setReloadState(true);
+
+            const imageData = new FormData();
+            imageData.append("mobile", user_mobile);
+
+            if (getImage != profileDefault) {
+                imageData.append("ProfileImage",
+                    {
+                        name: "profile",
+                        uri: getImage,
+                        type: "image/jpg",
 
 
-                });
+                    });
+            }
+
+
+            const response = await fetch(NGROK_URL + "/Vlinx/ProfileUpload", {
+                method: 'POST',
+                body: imageData,
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+
+
+            if (response.ok) {
+                router.replace('/signin');
+                setReloadState(false);
+
+            } else {
+                setReloadState(false);
+                Alert.alert("Error", "Network Error");
+
+            }
         } else {
-            Alert.alert("Select an Image to continue");
-            setReloadState(false);
-
-        }
-
-
-        const response = await fetch(NGROK_URL + "/Vlinx/ProfileUpload", {
-            method: 'POST',
-            body: imageData,
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
-
-
-        if (response.ok) {
-            router.replace('/signin');
-            setReloadState(false);
-
-        } else {
-            setReloadState(false);
-            Alert.alert("Error", "Network Error");
+            Alert.alert("Message", "Select an Image to Continue");
 
         }
     }

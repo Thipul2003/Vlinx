@@ -23,6 +23,13 @@ export function CustomChat(props) {
     if (!loaded && !error) {
         return null;
     }
+    const { profileClick } = props;
+
+    const handleProfileClick = () => {
+        if (profileClick) {
+            profileClick(props.profilePath);
+        }
+    };
 
     const navigateToChat = () => {
         router.push({
@@ -38,10 +45,11 @@ export function CustomChat(props) {
 
     return (
         <Pressable style={styles.view9} onPress={navigateToChat}>
-            <View style={styles.view10}>
+
+            <Pressable style={styles.view10} onPress={handleProfileClick}>
                 <Image source={props.profilePath} style={styles.image7}></Image>
                 <View style={[styles.view13, props.userStatus == 1 ? styles.display_flex : styles.display_none]}></View>
-            </View>
+            </Pressable>
             <View style={styles.view11}>
                 <Text style={[styles.text4, props.textDark ? styles.text_dark : styles.text_white]} numberOfLines={1}>{props.name}</Text>
                 {
@@ -78,9 +86,9 @@ export function CustomChat(props) {
 
 const styles = StyleSheet.create({
     view1: {
-        width: 25,
-        height: 25,
-        borderRadius: 15,
+        width: 23,
+        height: 23,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -92,17 +100,15 @@ const styles = StyleSheet.create({
     },
     text1: {
         fontSize: 12,
-        color: '#ffffff',
     },
     text_white: {
         color: '#ffffff',
-        fontFamily: 'Inter-Medium',
-        fontSize: 15,
+        fontFamily: 'Inter-Bold',
+        fontSize: 13,
     },
     text_dark: {
         color: '#000000',
         fontFamily: 'Inter-Bold',
-
     },
     view10: {
         flex: 1,
